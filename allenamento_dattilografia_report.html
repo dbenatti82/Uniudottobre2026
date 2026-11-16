@@ -74,3 +74,8 @@ $('send').onclick=()=>{let email=$('emailDocente').value.trim();if(!email){alert
 $('download').onclick=()=>{let blob=new Blob([reportText],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`report_${$('cognome').value}_${$('nome').value}.txt`;a.click();URL.revokeObjectURL(url);};
 render();
 </script></body></html>
+<p>
+  <a href="allenamento_dattilografia_report.html">
+    ⌨️ Allenamento di dattilografia
+  </a>
+</p>
