@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Allenamento di dattilografia</title>
+<style>
+:root{--blue:#2563eb;--ink:#172033;--muted:#64748b;--bg:#f3f6fb;--green:#15803d}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+main{max-width:950px;margin:24px auto;padding:16px}.card{background:#fff;border-radius:18px;padding:24px;box-shadow:0 8px 28px #17203312}
+h1{margin:0 0 8px;font-size:clamp(1.5rem,4vw,2.2rem)}.intro{color:var(--muted);margin-top:0}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:20px 0}
+label{display:block;font-weight:650;margin-bottom:6px}input,select{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}
+.tabs{display:flex;gap:8px;margin:18px 0}.tab{background:#e2e8f0;color:#172033}.tab.active{background:var(--blue);color:white}
+.timer{font-size:2.2rem;font-weight:800;font-variant-numeric:tabular-nums;background:#eff6ff;color:#1d4ed8;padding:12px 20px;border-radius:14px;display:inline-block}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:18px 0}.status{font-weight:600;color:var(--muted)}
+.prompt{font-size:1.2rem;line-height:1.9;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:18px;min-height:120px;overflow-wrap:anywhere}
+.prompt span.done{color:var(--green)}.prompt span.wrong{color:#dc2626;background:#fee2e2}.prompt span.current{background:#dbeafe;outline:2px solid #93c5fd;border-radius:4px}
+textarea{width:100%;min-height:130px;margin-top:12px;padding:14px;font:1.1rem/1.6 ui-monospace,Consolas,monospace;border:2px solid #cbd5e1;border-radius:12px;resize:vertical}
+.buttons{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}button{border:0;border-radius:10px;padding:12px 17px;font-weight:700;font-size:1rem;cursor:pointer}
+.primary{background:var(--blue);color:white}.secondary{background:#e2e8f0;color:#172033}.green{background:#15803d;color:white}button:disabled{opacity:.45;cursor:not-allowed}
+.report{margin-top:20px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:14px;padding:18px;display:none}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}.stat{background:white;border-radius:10px;padding:12px}.stat strong{display:block;font-size:1.45rem;color:#166534}
+.note{font-size:.9rem;color:var(--muted)}.hidden{display:none!important}
+@media(max-width:520px){.card{padding:15px}.timer{font-size:1.8rem}}
+</style>
+</head><body><main><section class="card">
+<h1>⌨️ Allenamento di dattilografia</h1><p class="intro">Scrivi il testo con rapidità e precisione. Il cronometro parte quando inizi e si ferma quando concludi.</p>
+<div class="fields">
+<div><label for="nome">Nome</label><input id="nome" autocomplete="given-name" required></div>
+<div><label for="cognome">Cognome</label><input id="cognome" autocomplete="family-name" required></div>
+<div><label for="classe">Classe</label><input id="classe" placeholder="Es. 2ª A" required></div>
+<div><label for="data">Data</label><input id="data" type="date" required></div>
+<div style="grid-column:1/-1"><label for="emailDocente">E-mail del professore (impostare prima della prova)</label><input id="emailDocente" type="email" placeholder="professore@scuola.it"></div>
+</div>
+<div class="tabs"><button class="tab active" id="tab1">Scheda 1 · Testo</button><button class="tab" id="tab2">Scheda 2 · Testo personalizzato</button></div>
+<div id="panel1"><p><strong>Testo 1</strong> — copia il brano seguente.</p></div>
+<div id="panel2" class="hidden"><label for="customText">Testo della seconda prova (può essere modificato dal docente)</label><textarea id="customText">La tecnologia ci permette di comunicare, studiare e creare. Per usare bene la tastiera è importante mantenere una postura comoda, appoggiare i piedi a terra e tenere lo sguardo sullo schermo. Allenarsi ogni giorno, anche per pochi minuti, aiuta a diventare più rapidi e sicuri.</textarea><p>Il testo qui sopra è modificabile: il docente può sostituirlo prima di avviare la prova.</p></div>
+<div class="top"><div class="timer" id="timer">00:00</div><div class="status" id="status">Pronto per iniziare</div></div>
+<div class="prompt" id="prompt"></div><label for="typing" style="margin-top:14px">Digita qui</label>
+<textarea id="typing" placeholder="Premi Inizia…" disabled spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+<div class="buttons"><button class="primary" id="start">▶ Inizia</button><button class="secondary" id="finish" disabled>■ Concludi prova</button><button class="secondary" id="reset">↻ Ricomincia</button></div>
+<section class="report" id="report"><h2>📊 Report della prova</h2><div id="studentInfo"></div>
+<div class="stats"><div class="stat">Tempo<strong id="rtime">00:00</strong></div><div class="stat">Caratteri corretti<strong id="rcorrect">0</strong></div><div class="stat">Errori<strong id="rerrors">0</strong></div><div class="stat">Velocità<strong id="rwpm">0</strong><small> parole/min</small></div><div class="stat">Precisione<strong id="racc">0%</strong></div></div><p id="message"></p>
+<div class="buttons"><button class="green" id="send">✉ Invia report al professore</button><button class="secondary" id="download">⬇ Scarica report (.txt)</button></div><p class="note" id="sendNote"></p></section>
+<p class="note">La prova non ha un limite di tempo: lo studente clicca «Concludi prova» quando ha finito. Il report viene preparato con i dati e i risultati.</p>
+</section></main>
+<script>
+const texts=[
+"Ogni giorno è una nuova occasione per imparare qualcosa. Mi siedo comodo, tengo le dita sulla tastiera e guardo lo schermo. Digito con calma, senza saltare le lettere e senza perdere il ritmo. La velocità arriva con l'esercizio: prima cerco la precisione, poi provo a migliorare. Quando sbaglio, correggo e continuo. Un piccolo allenamento fatto bene può diventare una grande abilità!",
+""
+];
+const $=id=>document.getElementById(id);
+const promptEl=$('prompt'),input=$('typing'),timerEl=$('timer'),statusEl=$('status');
+let tab=0, text=texts[0], begun=false,ended=false,interval=null,startAt=0,elapsed=0,reportText='';
+$('data').value=new Date().toISOString().slice(0,10);
+function fmt(s){s=Math.floor(s);return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
+function activeText(){return tab===0?texts[0]:$('customText').value;}
+function render(){text=activeText();const typed=input.value;promptEl.innerHTML=[...text].map((ch,i)=>{let cls=i<typed.length?(typed[i]===ch?'done':'wrong'):(i===typed.length?'current':'');return `<span class="${cls}">${ch===' '?'&nbsp;':esc(ch)}</span>`}).join('');}
+function esc(s){return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');}
+function tick(){elapsed=Math.floor((Date.now()-startAt)/1000);timerEl.textContent=fmt(elapsed);}
+function metrics(){let typed=input.value,correct=0;for(let i=0;i<Math.min(typed.length,text.length);i++)if(typed[i]===text[i])correct++;let errors=typed.length-correct;return{correct,errors,accuracy:typed.length?Math.round(correct/typed.length*100):0,wpm:elapsed?Math.round(correct/5/(elapsed/60)):0};}
+function finish(){if(!begun||ended)return;tick();ended=true;begun=false;clearInterval(interval);input.disabled=true;$('start').disabled=true;$('finish').disabled=true;statusEl.textContent='Prova conclusa';let m=metrics();$('rtime').textContent=fmt(elapsed);$('rcorrect').textContent=m.correct;$('rerrors').textContent=m.errors;$('rwpm').textContent=m.wpm;$('racc').textContent=m.accuracy+'%';$('message').textContent=m.accuracy>=95?'Ottimo lavoro: precisione eccellente!':m.accuracy>=80?'Bravo! Continua ad allenarti.':'Buon allenamento: riprova per migliorare.';
+$('studentInfo').textContent=`Studente: ${$('nome').value} ${$('cognome').value} · Classe: ${$('classe').value} · Data: ${$('data').value} · Scheda ${tab+1}`;
+reportText=`REPORT DATtilografia\\nNome: ${$('nome').value}\\nCognome: ${$('cognome').value}\\nClasse: ${$('classe').value}\\nData: ${$('data').value}\\nScheda: ${tab+1}\\nTempo: ${fmt(elapsed)}\\nCaratteri corretti: ${m.correct}\\nErrori: ${m.errors}\\nVelocità: ${m.wpm} parole/min\\nPrecisione: ${m.accuracy}%\\n\\nTesto assegnato:\\n${text}\\n\\nTesto digitato:\\n${input.value}`;
+$('report').style.display='block';$('sendNote').textContent='Per inviare, si aprirà il programma di posta configurato sul dispositivo con il report già compilato. Premi Invia nel programma di posta.';
+}
+$('start').onclick=()=>{if(ended)return;if(!begun){if(!$('nome').value.trim()||!$('cognome').value.trim()||!$('classe').value.trim()||!$('data').value){alert('Compila nome, cognome, classe e data prima di iniziare.');return;}text=activeText();if(!text.trim()){alert('Inserisci un testo per la prova.');return;}begun=true;startAt=Date.now();input.disabled=false;$('finish').disabled=false;$('start').textContent='⏱ In corso';statusEl.textContent='Allenamento in corso…';input.focus();interval=setInterval(tick,250);}};
+$('finish').onclick=finish;
+$('reset').onclick=()=>{clearInterval(interval);begun=false;ended=false;elapsed=0;startAt=0;input.value='';input.disabled=true;$('start').disabled=false;$('finish').disabled=true;$('start').textContent='▶ Inizia';timerEl.textContent='00:00';statusEl.textContent='Pronto per iniziare';$('report').style.display='none';render();};
+$('tab1').onclick=()=>switchTab(0);$('tab2').onclick=()=>switchTab(1);
+function switchTab(n){if(begun||ended){alert('Concludi o ricomincia la prova prima di cambiare scheda.');return;}tab=n;$('tab1').classList.toggle('active',n===0);$('tab2').classList.toggle('active',n===1);$('panel1').classList.toggle('hidden',n!==0);$('panel2').classList.toggle('hidden',n!==1);input.value='';render();}
+$('customText').addEventListener('input',render);input.addEventListener('input',render);
+$('send').onclick=()=>{let email=$('emailDocente').value.trim();if(!email){alert('Inserisci l’indirizzo e-mail del professore.');return;}let subject=encodeURIComponent(`Report dattilografia - ${$('nome').value} ${$('cognome').value}`),body=encodeURIComponent(reportText);location.href=`mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`;};
+$('download').onclick=()=>{let blob=new Blob([reportText],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`report_${$('cognome').value}_${$('nome').value}.txt`;a.click();URL.revokeObjectURL(url);};
+render();
+</script></body></html>
