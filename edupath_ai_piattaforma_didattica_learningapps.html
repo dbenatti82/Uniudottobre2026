@@ -1,0 +1,1558 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduPath AI - Percorso Didattico Interattivo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Stili personalizzati per transizioni e stampa */
+        .tab-transition {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .iframe-container {
+            position: relative;
+            width: 100%;
+            min-height: 500px;
+            background: #f8fafc;
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+        /* Animazione puntini caricamento AI */
+        .typing-dot {
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        /* Stili dedicati alla stampa del Report PDF */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printable-report-area, #printable-report-area * {
+                visibility: visible;
+            }
+            #printable-report-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white !important;
+                color: black !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <!-- ==================== HEADER PRINCIPALE ==================== -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Logo e Titolo -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-600 to-emerald-500 flex items-center justify-center text-white shadow-md">
+                    <i class="fa-solid fa-graduation-cap text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-900 leading-tight">EduPath <span class="text-brand-600">AI</span></h1>
+                    <p class="text-xs text-slate-500 hidden sm:block">Laboratorio Didattico Interattivo & LearningApps</p>
+                </div>
+            </div>
+
+            <!-- Info Alunno Attivo & Azioni -->
+            <div class="flex items-center gap-2 sm:gap-3">
+                <div id="header-student-badge" class="hidden md:flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-full text-xs font-medium text-slate-700 border border-slate-200">
+                    <i class="fa-solid fa-user-graduate text-brand-600"></i>
+                    <span id="header-student-name">Alunno non registrato</span>
+                    <span class="text-slate-400">|</span>
+                    <span id="header-student-class" class="font-semibold text-brand-700">-</span>
+                </div>
+
+                <!-- Pulsante Tutor AI -->
+                <button onclick="toggleAITutor()" class="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs sm:text-sm font-semibold transition shadow-sm">
+                    <i class="fa-solid fa-robot"></i>
+                    <span>Tutor AI</span>
+                </button>
+
+                <!-- Pulsante Area Docente -->
+                <button onclick="openTeacherLoginModal()" class="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs sm:text-sm font-medium transition shadow-sm">
+                    <i class="fa-solid fa-lock"></i>
+                    <span class="hidden sm:inline">Area Docente</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==================== NOTIFICA TOAST GLOBALE ==================== -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- ==================== CONTENUTO PRINCIPALE ==================== -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- SCHERMATA 1: REGISTRAZIONE DATI ALUNNO -->
+        <section id="student-registration-view" class="max-w-2xl mx-auto bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden my-4">
+            <div class="bg-gradient-to-r from-brand-600 to-indigo-700 px-6 py-6 text-white">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="bg-white/20 p-2 rounded-lg"><i class="fa-solid fa-id-card text-xl"></i></span>
+                    <h2 class="text-xl sm:text-2xl font-bold">Scheda Identificativa Alunno</h2>
+                </div>
+                <p class="text-indigo-100 text-sm">Compila tutti i campi obbligatori per avviare il percorso didattico e registrare i tuoi progressi.</p>
+            </div>
+
+            <form id="student-form" onsubmit="handleStudentSubmit(event)" class="p-6 sm:p-8 space-y-5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Nome *</label>
+                        <input type="text" id="input-nome" required placeholder="Es. Marco" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Cognome *</label>
+                        <input type="text" id="input-cognome" required placeholder="Es. Rossi" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Classe e Sezione *</label>
+                        <input type="text" id="input-classe" required placeholder="Es. 3ª B" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Data di Nascita / Matricola *</label>
+                        <input type="text" id="input-matricola" required placeholder="Es. 14/05/2010 oppure MAT-104" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Email dell'Alunno *</label>
+                        <input type="email" id="input-email-alunno" required placeholder="marco.rossi@scuola.it" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Email del Docente Destinatario *</label>
+                        <input type="email" id="input-email-docente" required placeholder="prof.bianchi@scuola.it" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition text-sm bg-slate-50">
+                        <p class="text-[11px] text-slate-400 mt-1">Configurabile anche dall'Area Docente</p>
+                    </div>
+                </div>
+
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                    <i class="fa-solid fa-circle-info text-amber-600 mt-0.5"></i>
+                    <div class="text-xs text-amber-800 leading-relaxed">
+                        <strong>Modalità di svolgimento attiva:</strong> <span id="reg-mode-info">Ordine sequenziale obbligatorio (Esercizio 1 → 2 → 3).</span> Il cronometro registrerà automaticamente il tempo impiegato su ciascuna attività.
+                    </div>
+                </div>
+
+                <div class="pt-2 flex justify-end">
+                    <button type="submit" class="w-full sm:w-auto px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2">
+                        <span>Inizia il Percorso Didattico</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- SCHERMATA 2: AREA DI LAVORO ESERCIZI -->
+        <section id="workspace-view" class="hidden space-y-6">
+            
+            <!-- Barra Stato Superiore: Dati Alunno, Tempo Totale e Pulsante Report -->
+            <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div class="flex flex-wrap items-center gap-3">
+                    <button onclick="editStudentProfile()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5" title="Modifica dati alunno">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <span id="workspace-student-summary">Alunno</span>
+                    </button>
+                    <span id="sequential-badge" class="text-xs px-3 py-1.5 rounded-lg font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1.5">
+                        <i class="fa-solid fa-list-ol"></i>
+                        <span>Ordine Sequenziale Attivo</span>
+                    </span>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                    <!-- Cronometro Esercizio Attivo -->
+                    <div class="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl shadow-inner">
+                        <i class="fa-regular fa-clock text-emerald-400 animate-pulse"></i>
+                        <div class="text-xs">
+                            <span class="text-slate-400 block text-[10px] uppercase">Tempo Esercizio</span>
+                            <span id="active-exercise-timer" class="font-mono font-bold text-sm">00:00</span>
+                        </div>
+                        <span class="text-slate-600 mx-1">|</span>
+                        <div class="text-xs">
+                            <span class="text-slate-400 block text-[10px] uppercase">Totale</span>
+                            <span id="total-session-timer" class="font-mono font-bold text-sm text-emerald-300">00:00</span>
+                        </div>
+                    </div>
+
+                    <!-- Pulsante Genera Report -->
+                    <button id="btn-open-report" onclick="openReportModal()" class="px-4 py-2.5 rounded-xl font-semibold text-sm transition flex items-center gap-2 shadow-sm bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-file-lines"></i>
+                        <span>Genera Report Docente</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Navigazione Step Esercizi (1, 2, 3) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="exercise-tabs-container">
+                <!-- Generato dinamicamente via JS -->
+            </div>
+
+            <!-- Contenitore Principale Esercizio Attivo + Obiettivi -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Colonna Sinistra (8/12): Iframe LearningApps & Barra Completamento -->
+                <div class="lg:col-span-8 space-y-4">
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                            <div class="flex items-center gap-2.5">
+                                <span id="current-ex-badge" class="px-2.5 py-1 rounded-lg bg-brand-600 text-white text-xs font-bold">Esercizio 1</span>
+                                <h3 id="current-ex-title" class="font-bold text-slate-800 text-base">Titolo Esercizio</h3>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="reloadCurrentIframe()" class="text-xs text-slate-500 hover:text-brand-600 px-2.5 py-1 rounded-lg hover:bg-slate-200/60 transition flex items-center gap-1" title="Ricarica esercizio">
+                                    <i class="fa-solid fa-rotate-right"></i> Ricarica
+                                </button>
+                                <span id="current-ex-status-pill" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">
+                                    In corso
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Iframe LearningApps -->
+                        <div class="iframe-container p-2">
+                            <iframe id="learningapp-iframe" src="" style="border:0px;width:100%;height:500px" allowfullscreen="true" webkitallowfullscreen="true" mozallowfullscreen="true" class="rounded-xl"></iframe>
+                        </div>
+
+                        <!-- Barra Azione Completamento -->
+                        <div class="p-4 sm:p-5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div class="text-xs text-slate-600 flex items-center gap-2">
+                                <i class="fa-solid fa-lightbulb text-amber-500 text-base"></i>
+                                <span id="completion-hint-text">Completa tutte le richieste all'interno del riquadro qui sopra, poi conferma il superamento.</span>
+                            </div>
+                            
+                            <button id="btn-complete-exercise" onclick="openVerificationModal()" class="w-full sm:w-auto shrink-0 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm shadow-sm transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-check-circle"></i>
+                                <span id="btn-complete-text">Conferma Completamento Esercizio</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Colonna Destra (4/12): Obiettivi Didattici & Aiuto Rapido -->
+                <div class="lg:col-span-4 space-y-4">
+                    <!-- Scheda Obiettivi Didattici -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <h4 class="font-bold text-slate-800 flex items-center gap-2 text-sm">
+                                <i class="fa-solid fa-bullseye text-brand-600"></i>
+                                <span>Obiettivi dell'Esercizio</span>
+                            </h4>
+                            <span class="text-[11px] font-medium text-slate-400">Valutazione</span>
+                        </div>
+
+                        <!-- Obiettivo Primario -->
+                        <div class="p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-100 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-700">Obiettivo Primario</span>
+                                <span id="obj-primary-status" class="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-600">In attesa</span>
+                            </div>
+                            <p id="obj-primary-text" class="text-xs text-slate-700 leading-relaxed font-medium">
+                                Descrizione obiettivo primario...
+                            </p>
+                        </div>
+
+                        <!-- Obiettivo Secondario -->
+                        <div class="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-100 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Obiettivo Secondario</span>
+                                <span id="obj-secondary-status" class="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-600">In attesa</span>
+                            </div>
+                            <p id="obj-secondary-text" class="text-xs text-slate-700 leading-relaxed font-medium">
+                                Descrizione obiettivo secondario...
+                            </p>
+                        </div>
+
+                        <!-- Riepilogo Progresso Globale -->
+                        <div class="pt-2">
+                            <div class="flex justify-between text-xs font-medium text-slate-600 mb-1.5">
+                                <span>Avanzamento Percorso</span>
+                                <span id="progress-fraction">0 / 3 Completati</span>
+                            </div>
+                            <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                                <div id="progress-bar-fill" class="bg-gradient-to-r from-brand-600 to-emerald-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card Supporto Tutor AI -->
+                    <div class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-5 shadow-md space-y-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400">
+                                <i class="fa-solid fa-sparkles"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm">Hai bisogno di un aiuto?</h4>
+                                <p class="text-[11px] text-slate-300">Chiedi un suggerimento al Tutor AI</p>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            Il Tutor AI può spiegarti il metodo per risolvere l'esercizio corrente senza svelarti subito la risposta!
+                        </p>
+                        <button onclick="askAIForCurrentExercise()" class="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span>Chiedi Suggerimento sull'Esercizio</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ==================== DRAWER LATERALE TUTOR AI (GEMINI) ==================== -->
+    <div id="ai-tutor-drawer" class="fixed inset-y-0 right-0 w-full sm:w-96 bg-white shadow-2xl border-l border-slate-200 z-40 transform translate-x-full transition-transform duration-300 flex flex-col">
+        <!-- Header Tutor AI -->
+        <div class="px-5 py-4 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <i class="fa-solid fa-robot text-xl"></i>
+                <div>
+                    <h3 class="font-bold text-sm">Tutor AI Didattico</h3>
+                    <p class="text-[11px] text-emerald-100">Supporto metodologico intelligente</p>
+                </div>
+            </div>
+            <button onclick="toggleAITutor()" class="w-8 h-8 rounded-lg hover:bg-white/20 flex items-center justify-center transition">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Area Messaggi Chat -->
+        <div id="ai-chat-messages" class="flex-grow p-4 overflow-y-auto space-y-3 bg-slate-50 text-sm">
+            <div class="bg-white border border-slate-200 rounded-2xl rounded-tl-none p-3.5 shadow-sm text-slate-700 text-xs leading-relaxed">
+                Ciao! Sono il tuo <strong>Tutor AI</strong>. 👋<br><br>
+                Posso aiutarti a ragionare sugli esercizi di LearningApps, chiarire dubbi teorici o darti un indizio metodologico. Su quale punto hai bisogno di aiuto?
+            </div>
+        </div>
+
+        <!-- Suggerimenti Rapidi -->
+        <div class="px-4 py-2 bg-white border-t border-slate-100 flex gap-1.5 overflow-x-auto">
+            <button onclick="sendQuickPrompt('Dammi un consiglio di metodo per affrontare questo esercizio.')" class="shrink-0 text-[11px] bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 px-2.5 py-1 rounded-full border border-slate-200 transition">
+                💡 Consiglio di metodo
+            </button>
+            <button onclick="sendQuickPrompt('Come posso evitare errori di distrazione?')" class="shrink-0 text-[11px] bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 px-2.5 py-1 rounded-full border border-slate-200 transition">
+                🎯 Evitare errori
+            </button>
+        </div>
+
+        <!-- Form Invio Messaggio -->
+        <form onsubmit="handleAIChatSubmit(event)" class="p-3 bg-white border-t border-slate-200 flex gap-2">
+            <input type="text" id="ai-chat-input" placeholder="Scrivi una domanda al Tutor..." class="flex-grow px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 outline-none">
+            <button type="submit" id="ai-chat-send-btn" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition">
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </form>
+    </div>
+
+    <!-- ==================== MODALE VERIFICA COMPLETAMENTO ESERCIZIO ==================== -->
+    <div id="verification-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-fade-in">
+            <div class="px-6 py-4 bg-brand-600 text-white flex items-center justify-between">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-clipboard-check"></i>
+                    <span>Verifica Superamento Esercizio</span>
+                </h3>
+                <button onclick="closeVerificationModal()" class="text-white/80 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 space-y-4">
+                <p class="text-xs text-slate-600 leading-relaxed">
+                    Stai per registrare il completamento dell'<strong id="verif-ex-name">Esercizio</strong> (tempo trascorso: <strong id="verif-ex-time">00:00</strong>).
+                </p>
+
+                <!-- Avviso Tempo Minimo (se non ancora raggiunto) -->
+                <div id="min-time-warning" class="hidden p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2.5">
+                    <i class="fa-solid fa-hourglass-half text-amber-600 mt-0.5"></i>
+                    <div>
+                        <strong>Tempo minimo non ancora raggiunto!</strong><br>
+                        Il docente richiede almeno <span id="min-time-required-sec" class="font-bold">15</span> secondi di attività sull'esercizio prima della conferma. Attendi ancora <span id="min-time-remaining-sec" class="font-bold">10</span>s.
+                    </div>
+                </div>
+
+                <!-- Checklist Autocertificazione Obiettivi -->
+                <div id="verif-checklist-box" class="space-y-3">
+                    <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
+                        <input type="checkbox" id="check-app-solved" class="mt-1 w-4 h-4 text-brand-600 rounded focus:ring-brand-500">
+                        <span class="text-xs text-slate-700 leading-relaxed">
+                            Confermo di aver visualizzato la <strong>schermata finale di successo / soluzione corretta</strong> all'interno di LearningApps.
+                        </span>
+                    </label>
+
+                    <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+                        <p class="text-[11px] font-bold uppercase text-slate-500">Autovalutazione Obiettivi Raggiunti:</p>
+                        
+                        <label class="flex items-start gap-2.5 cursor-pointer">
+                            <input type="checkbox" id="check-obj-primary" checked class="mt-0.5 w-4 h-4 text-indigo-600 rounded">
+                            <span class="text-xs text-slate-700">
+                                <strong class="text-indigo-700">Primario:</strong> <span id="verif-obj-primary-label">...</span>
+                            </span>
+                        </label>
+
+                        <label class="flex items-start gap-2.5 cursor-pointer">
+                            <input type="checkbox" id="check-obj-secondary" checked class="mt-0.5 w-4 h-4 text-emerald-600 rounded">
+                            <span class="text-xs text-slate-700">
+                                <strong class="text-emerald-700">Secondario:</strong> <span id="verif-obj-secondary-label">...</span>
+                            </span>
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Breve nota o concetto chiave appreso (opzionale):</label>
+                        <input type="text" id="verif-student-note" placeholder="Es. Ho collegato correttamente tutti i termini..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-brand-500 outline-none">
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button onclick="closeVerificationModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition">
+                        Annulla
+                    </button>
+                    <button id="btn-confirm-verif" onclick="confirmExerciseCompletion()" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        Registra e Prosegui
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODALE LOGIN AREA DOCENTE ==================== -->
+    <div id="teacher-login-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 bg-slate-800 text-white flex items-center justify-between">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+                    <span>Accesso Area Docente</span>
+                </h3>
+                <button onclick="closeTeacherLoginModal()" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form onsubmit="handleTeacherLogin(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Password Docente</label>
+                    <input type="password" id="teacher-password-input" required placeholder="Inserisci password..." class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-800 outline-none text-sm">
+                    <p class="text-[11px] text-slate-400 mt-1.5">Password predefinita: <code class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 font-semibold">docente2026</code></p>
+                </div>
+                <p id="teacher-login-error" class="hidden text-xs text-red-600 font-medium">Password errata. Riprova.</p>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeTeacherLoginModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50">Annulla</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold">Accedi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== MODALE PANNELLO CONFIGURAZIONE DOCENTE ==================== -->
+    <div id="teacher-panel-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8 max-h-[90vh] flex flex-col">
+            <!-- Header Pannello Docente -->
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-sliders text-emerald-400 text-lg"></i>
+                    <div>
+                        <h3 class="font-bold text-base">Pannello di Controllo Docente</h3>
+                        <p class="text-xs text-slate-400">Configura regole di sequenzialità, obiettivi didattici ed email report</p>
+                    </div>
+                </div>
+                <button onclick="closeTeacherPanel()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Corpo Configurazione -->
+            <div class="p-6 overflow-y-auto space-y-6 flex-grow">
+                
+                <!-- Impostazioni Generali & Regole -->
+                <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+                    <h4 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-gears text-brand-600"></i>
+                        <span>Regole del Percorso & Destinatario Report</span>
+                    </h4>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Toggle Ordine Sequenziale -->
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between gap-3">
+                            <div>
+                                <p class="text-xs font-bold text-slate-800">Ordine Sequenziale Obbligatorio</p>
+                                <p class="text-[11px] text-slate-500 mt-0.5">Se attivo, l'alunno deve risolvere l'Es. 1 per sbloccare il 2, e il 2 per il 3.</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                                <input type="checkbox" id="cfg-sequential" class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
+                            </label>
+                        </div>
+
+                        <!-- Tempo Minimo Svolgimento -->
+                        <div class="bg-white p-4 rounded-xl border border-slate-200">
+                            <label class="block text-xs font-bold text-slate-800 mb-1">Tempo Minimo per Esercizio (secondi)</label>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="cfg-min-time" min="0" max="600" class="w-24 px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold">
+                                <span class="text-[11px] text-slate-500">Evita click immediati senza svolgere l'app</span>
+                            </div>
+                        </div>
+
+                        <!-- Email Docente Predefinita -->
+                        <div class="bg-white p-4 rounded-xl border border-slate-200">
+                            <label class="block text-xs font-bold text-slate-800 mb-1">Email Docente Predefinita</label>
+                            <input type="email" id="cfg-teacher-email" placeholder="docente@scuola.it" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs">
+                        </div>
+
+                        <!-- Cambio Password Docente -->
+                        <div class="bg-white p-4 rounded-xl border border-slate-200">
+                            <label class="block text-xs font-bold text-slate-800 mb-1">Password Area Docente</label>
+                            <input type="text" id="cfg-teacher-password" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configurazione dei 3 Esercizi LearningApps -->
+                <div class="space-y-4">
+                    <h4 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group text-emerald-600"></i>
+                        <span>Configurazione Esercizi LearningApps e Obiettivi Didattici</span>
+                    </h4>
+                    <div id="teacher-exercises-config-list" class="space-y-4">
+                        <!-- Popolato dinamicamente via JS -->
+                    </div>
+                </div>
+
+                <!-- Zona Pericolo: Reset Sessione Alunno -->
+                <div class="bg-red-50 border border-red-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-bold text-red-800">Nuovo Alunno / Reset Sessione Corrente</p>
+                        <p class="text-[11px] text-red-600">Cancella i dati anagrafici, i tempi e i completamenti dell'alunno attuale mantenendo le impostazioni docente.</p>
+                    </div>
+                    <button onclick="resetStudentSession()" class="shrink-0 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition">
+                        <i class="fa-solid fa-trash-can mr-1"></i> Azzera Dati Alunno
+                    </button>
+                </div>
+            </div>
+
+            <!-- Footer Azioni Pannello Docente -->
+            <div class="px-6 py-4 bg-slate-100 border-t border-slate-200 flex justify-end gap-3 shrink-0">
+                <button onclick="closeTeacherPanel()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-50">
+                    Chiudi senza salvare
+                </button>
+                <button onclick="saveTeacherSettings()" class="px-6 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow-sm flex items-center gap-2">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    <span>Salva Configurazione</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODALE REPORT FINALE & INVIO EMAIL ==================== -->
+    <div id="report-modal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden my-6 max-h-[92vh] flex flex-col">
+            
+            <!-- Header Modale Report -->
+            <div class="px-6 py-4 bg-gradient-to-r from-slate-900 to-brand-900 text-white flex items-center justify-between shrink-0 no-print">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-file-contract text-emerald-400 text-xl"></i>
+                    <div>
+                        <h3 class="font-bold text-base">Report Didattico Finale</h3>
+                        <p class="text-xs text-slate-300">Riepilogo tempi, obiettivi superati e valutazione AI</p>
+                    </div>
+                </div>
+                <button onclick="closeReportModal()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Contenuto Stampabile del Report -->
+            <div id="printable-report-area" class="p-6 sm:p-8 overflow-y-auto space-y-6 flex-grow bg-white">
+                
+                <!-- Intestazione Documento -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b-2 border-slate-800 pb-4 gap-3">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-widest text-brand-600">Attestazione Attività Interattiva</span>
+                        <h2 class="text-2xl font-bold text-slate-900">Report Percorso LearningApps</h2>
+                    </div>
+                    <div class="text-left sm:text-right text-xs text-slate-500">
+                        <p>Data generaz.: <strong id="rep-date" class="text-slate-800">-</strong></p>
+                        <p>Modalità: <strong id="rep-mode" class="text-slate-800">-</strong></p>
+                    </div>
+                </div>
+
+                <!-- Griglia Dati Anagrafici Alunno -->
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
+                    <div>
+                        <span class="text-slate-400 block uppercase text-[10px] font-bold">Alunno</span>
+                        <strong id="rep-student-fullname" class="text-sm text-slate-900">-</strong>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block uppercase text-[10px] font-bold">Classe / Sezione</span>
+                        <strong id="rep-student-class" class="text-sm text-slate-900">-</strong>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block uppercase text-[10px] font-bold">Data Nascita / Matricola</span>
+                        <strong id="rep-student-matricola" class="text-sm text-slate-900">-</strong>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block uppercase text-[10px] font-bold">Email Alunno</span>
+                        <span id="rep-student-email" class="font-medium text-slate-700">-</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block uppercase text-[10px] font-bold">Email Docente</span>
+                        <span id="rep-teacher-email" class="font-medium text-slate-700">-</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block uppercase text-[10px] font-bold">Tempo Totale Impiegato</span>
+                        <strong id="rep-total-time" class="text-sm text-brand-700 font-mono">00:00</strong>
+                    </div>
+                </div>
+
+                <!-- Tabella Analitica Esercizi & Obiettivi -->
+                <div class="space-y-3">
+                    <h4 class="font-bold text-sm text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-table-list text-brand-600"></i>
+                        <span>Dettaglio Esercizi, Durate e Obiettivi</span>
+                    </h4>
+                    <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
+                                    <th class="p-3 font-bold">Esercizio</th>
+                                    <th class="p-3 font-bold">Durata</th>
+                                    <th class="p-3 font-bold">Obiettivo Primario & Esito</th>
+                                    <th class="p-3 font-bold">Obiettivo Secondario & Esito</th>
+                                    <th class="p-3 font-bold">Stato</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rep-exercises-tbody" class="divide-y divide-slate-200">
+                                <!-- Generato dinamicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sezione Valutazione Pedagogica AI -->
+                <div class="bg-indigo-50/70 border border-indigo-200 rounded-xl p-5 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-sm text-indigo-950 flex items-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles text-brand-600"></i>
+                            <span>Analisi Formativa e Giudizio Sintetico (AI)</span>
+                        </h4>
+                        <button onclick="generateAIFeedbackForReport()" id="btn-regenerate-ai-report" class="no-print text-xs bg-white hover:bg-indigo-100 text-brand-700 border border-indigo-200 px-3 py-1 rounded-lg font-semibold transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate"></i> Rigenera Giudizio AI
+                        </button>
+                    </div>
+                    <div id="rep-ai-evaluation" class="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
+                        Generazione analisi pedagogica in corso...
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer Azioni Invio Email, Copia e Stampa -->
+            <div class="px-6 py-4 bg-slate-100 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0 no-print">
+                <button onclick="window.print()" class="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-bold transition flex items-center gap-2">
+                    <i class="fa-solid fa-print"></i>
+                    <span>Stampa / Salva PDF</span>
+                </button>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="copyReportToClipboard()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold transition flex items-center gap-2">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>Copia Testo Report</span>
+                    </button>
+
+                    <button onclick="sendReportViaEmail()" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition flex items-center gap-2">
+                        <i class="fa-solid fa-envelope-open-text"></i>
+                        <span>Invia alla Mail del Docente</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== LOGICA JAVASCRIPT APPLICAZIONE ==================== -->
+    <script>
+        // ==================== CONFIGURAZIONE GEMINI API ====================
+        const apiKey = ""; // Chiave gestita dall'ambiente runtime
+        const GEMINI_MODEL = "gemini-3-flash-preview";
+
+        async function callGeminiAPI(userQuery, systemPrompt) {
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+
+            const delays = [1000, 2000, 4000, 8000];
+            for (let attempt = 0; attempt <= delays.length; attempt++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const result = await response.json();
+                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (text) return text;
+                    throw new Error("Risposta vuota dal modello");
+                } catch (err) {
+                    if (attempt === delays.length) {
+                        throw err;
+                    }
+                    await new Promise(res => setTimeout(res, delays[attempt]));
+                }
+            }
+        }
+
+        // ==================== STATO PREDEFINITO E PERSISTENZA ====================
+        const DEFAULT_CONFIG = {
+            sequentialOrder: true,
+            minTimeSeconds: 15,
+            teacherEmail: "docente.didattica@scuola.edu.it",
+            teacherPassword: "docente2026",
+            exercises: [
+                {
+                    id: 1,
+                    title: "Esercizio 1 - Attività Introduttiva",
+                    iframeUrl: "https://learningapps.org/watch?app=4451900",
+                    primaryObjective: "Comprendere i concetti fondamentali e associare correttamente gli elementi principali proposti nell'attività.",
+                    secondaryObjective: "Completare l'abbinamento con metodo ordinato verificando ogni risposta prima della conferma finale."
+                },
+                {
+                    id: 2,
+                    title: "Esercizio 2 - Approfondimento e Classificazione",
+                    iframeUrl: "https://learningapps.org/watch?app=15411517",
+                    primaryObjective: "Analizzare e classificare correttamente i contenuti discriminando tra le diverse categorie logiche.",
+                    secondaryObjective: "Dimostrare autonomia operativa e capacità di autocorrezione durante la risoluzione."
+                },
+                {
+                    id: 3,
+                    title: "Esercizio 3 - Consolidamento e Verifica Finale",
+                    iframeUrl: "https://learningapps.org/watch?app=10816879",
+                    primaryObjective: "Applicare in modo integrato le conoscenze acquisite nei passaggi precedenti per risolvere il compito finale.",
+                    secondaryObjective: "Raggiungere il completamento integrale dell'attività mantenendo accuratezza e precisione."
+                }
+            ]
+        };
+
+        const DEFAULT_STUDENT_STATE = {
+            registered: false,
+            nome: "",
+            cognome: "",
+            classe: "",
+            matricola: "",
+            emailAlunno: "",
+            emailDocente: "",
+            activeExerciseIndex: 0,
+            progress: [
+                { completed: false, timeSpentSec: 0, primaryPassed: false, secondaryPassed: false, note: "", autoDetected: false },
+                { completed: false, timeSpentSec: 0, primaryPassed: false, secondaryPassed: false, note: "", autoDetected: false },
+                { completed: false, timeSpentSec: 0, primaryPassed: false, secondaryPassed: false, note: "", autoDetected: false }
+            ],
+            aiReportSummary: ""
+        };
+
+        let appConfig = JSON.parse(localStorage.getItem('edupath_config_v1')) || JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+        let studentState = JSON.parse(localStorage.getItem('edupath_student_v1')) || JSON.parse(JSON.stringify(DEFAULT_STUDENT_STATE));
+        let timerInterval = null;
+
+        function saveState() {
+            localStorage.setItem('edupath_config_v1', JSON.stringify(appConfig));
+            localStorage.setItem('edupath_student_v1', JSON.stringify(studentState));
+        }
+
+        // ==================== INIZIALIZZAZIONE ====================
+        window.addEventListener('DOMContentLoaded', () => {
+            // Precompila email docente nel form iniziale se disponibile
+            document.getElementById('input-email-docente').value = studentState.emailDocente || appConfig.teacherEmail;
+            updateRegistrationModeHint();
+
+            if (studentState.registered) {
+                showWorkspaceView();
+            } else {
+                showRegistrationView();
+            }
+
+            // Ascolto eventi postMessage provenienti dagli iframe di LearningApps
+            window.addEventListener('message', handleLearningAppsPostMessage);
+        });
+
+        // Ascolto automatico messaggi cross-origin da LearningApps
+        function handleLearningAppsPostMessage(event) {
+            try {
+                const origin = event.origin || "";
+                const rawData = typeof event.data === 'string' ? event.data : JSON.stringify(event.data || {});
+                if (origin.includes('learningapps.org') || rawData.toLowerCase().includes('learningapps')) {
+                    const lower = rawData.toLowerCase();
+                    if (lower.includes('solved') || lower.includes('success') || lower.includes('finished') || lower.includes('complete')) {
+                        const idx = studentState.activeExerciseIndex;
+                        if (!studentState.progress[idx].completed) {
+                            studentState.progress[idx].autoDetected = true;
+                            saveState();
+                            showToast("Segnale di completamento rilevato da LearningApps! Clicca su 'Conferma Completamento'.", "success");
+                            document.getElementById('check-app-solved').checked = true;
+                        }
+                    }
+                }
+            } catch (e) {
+                // Ignora messaggi non pertinenti
+            }
+        }
+
+        // ==================== GESTIONE VISTE & REGISTRAZIONE ALUNNO ====================
+        function updateRegistrationModeHint() {
+            const el = document.getElementById('reg-mode-info');
+            if (appConfig.sequentialOrder) {
+                el.textContent = "Ordine sequenziale obbligatorio (Esercizio 1 → 2 → 3). Non potrai accedere al successivo senza aver completato il precedente.";
+            } else {
+                el.textContent = "Navigazione libera attiva: puoi svolgere i 3 esercizi nell'ordine che preferisci.";
+            }
+        }
+
+        function showRegistrationView() {
+            stopTimer();
+            document.getElementById('student-registration-view').classList.remove('hidden');
+            document.getElementById('workspace-view').classList.add('hidden');
+            document.getElementById('header-student-badge').classList.add('hidden');
+
+            // Popola campi se in modifica
+            document.getElementById('input-nome').value = studentState.nome;
+            document.getElementById('input-cognome').value = studentState.cognome;
+            document.getElementById('input-classe').value = studentState.classe;
+            document.getElementById('input-matricola').value = studentState.matricola;
+            document.getElementById('input-email-alunno').value = studentState.emailAlunno;
+            document.getElementById('input-email-docente').value = studentState.emailDocente || appConfig.teacherEmail;
+        }
+
+        function handleStudentSubmit(e) {
+            e.preventDefault();
+            studentState.nome = document.getElementById('input-nome').value.trim();
+            studentState.cognome = document.getElementById('input-cognome').value.trim();
+            studentState.classe = document.getElementById('input-classe').value.trim();
+            studentState.matricola = document.getElementById('input-matricola').value.trim();
+            studentState.emailAlunno = document.getElementById('input-email-alunno').value.trim();
+            studentState.emailDocente = document.getElementById('input-email-docente').value.trim();
+            studentState.registered = true;
+
+            saveState();
+            showWorkspaceView();
+            showToast(`Benvenuto/a ${studentState.nome}! Buon lavoro.`, "success");
+        }
+
+        function editStudentProfile() {
+            showRegistrationView();
+        }
+
+        function showWorkspaceView() {
+            document.getElementById('student-registration-view').classList.add('hidden');
+            document.getElementById('workspace-view').classList.remove('hidden');
+
+            // Aggiorna badge header e barra stato
+            const fullName = `${studentState.nome} ${studentState.cognome}`;
+            document.getElementById('header-student-name').textContent = fullName;
+            document.getElementById('header-student-class').textContent = studentState.classe;
+            document.getElementById('header-student-badge').classList.remove('hidden');
+            document.getElementById('workspace-student-summary').textContent = `${fullName} (${studentState.classe}) - Matr: ${studentState.matricola}`;
+
+            // Badge modalità sequenziale
+            const seqBadge = document.getElementById('sequential-badge');
+            if (appConfig.sequentialOrder) {
+                seqBadge.className = "text-xs px-3 py-1.5 rounded-lg font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1.5";
+                seqBadge.innerHTML = `<i class="fa-solid fa-list-ol"></i><span>Ordine Sequenziale Attivo (1 → 2 → 3)</span>`;
+            } else {
+                seqBadge.className = "text-xs px-3 py-1.5 rounded-lg font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5";
+                seqBadge.innerHTML = `<i class="fa-solid fa-shuffle"></i><span>Navigazione Libera Attiva</span>`;
+            }
+
+            renderExerciseTabs();
+            loadExercise(studentState.activeExerciseIndex);
+            startTimer();
+        }
+
+        // ==================== GESTIONE ESERCIZI, SBLOCCO E CRONOMETRO ====================
+        function isExerciseUnlocked(index) {
+            if (!appConfig.sequentialOrder) return true;
+            if (index === 0) return true;
+            // Sbloccato solo se tutti i precedenti sono completati
+            for (let i = 0; i < index; i++) {
+                if (!studentState.progress[i].completed) return false;
+            }
+            return true;
+        }
+
+        function renderExerciseTabs() {
+            const container = document.getElementById('exercise-tabs-container');
+            container.innerHTML = '';
+
+            let completedCount = 0;
+            studentState.progress.forEach(p => { if (p.completed) completedCount++; });
+
+            appConfig.exercises.forEach((ex, idx) => {
+                const unlocked = isExerciseUnlocked(idx);
+                const prog = studentState.progress[idx];
+                const isActive = studentState.activeExerciseIndex === idx;
+
+                let cardStyle = "";
+                let iconHtml = "";
+                let statusText = "";
+
+                if (prog.completed) {
+                    cardStyle = isActive
+                        ? "bg-emerald-50 border-2 border-emerald-500 shadow-md"
+                        : "bg-white border border-emerald-300 hover:bg-emerald-50/50 cursor-pointer";
+                    iconHtml = `<div class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0"><i class="fa-solid fa-check"></i></div>`;
+                    statusText = `<span class="text-[11px] font-bold text-emerald-700">Superato (${formatTime(prog.timeSpentSec)})</span>`;
+                } else if (!unlocked) {
+                    cardStyle = "bg-slate-100 border border-slate-200 opacity-65 cursor-not-allowed";
+                    iconHtml = `<div class="w-8 h-8 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center shrink-0"><i class="fa-solid fa-lock"></i></div>`;
+                    statusText = `<span class="text-[11px] font-medium text-slate-500">Bloccato (Completa prima l'Es. ${idx})</span>`;
+                } else {
+                    cardStyle = isActive
+                        ? "bg-indigo-50/80 border-2 border-brand-600 shadow-md"
+                        : "bg-white border border-slate-200 hover:border-brand-300 cursor-pointer";
+                    iconHtml = `<div class="w-8 h-8 rounded-full ${isActive ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-700'} font-bold text-xs flex items-center justify-center shrink-0">${idx + 1}</div>`;
+                    statusText = `<span class="text-[11px] font-semibold text-brand-600">${isActive ? 'In svolgimento...' : 'Disponibile'} (${formatTime(prog.timeSpentSec)})</span>`;
+                }
+
+                const tabEl = document.createElement('div');
+                tabEl.className = `p-3.5 rounded-2xl tab-transition flex items-center gap-3 ${cardStyle}`;
+                tabEl.innerHTML = `
+                    ${iconHtml}
+                    <div class="min-w-0 flex-grow">
+                        <p class="text-xs font-bold text-slate-800 truncate">${ex.title}</p>
+                        ${statusText}
+                    </div>
+                `;
+
+                tabEl.onclick = () => {
+                    if (!unlocked) {
+                        showToast(`Esercizio bloccato! Devi prima completare l'Esercizio ${idx}.`, "warning");
+                        return;
+                    }
+                    if (studentState.activeExerciseIndex !== idx) {
+                        loadExercise(idx);
+                    }
+                };
+
+                container.appendChild(tabEl);
+            });
+
+            // Aggiorna barra avanzamento
+            document.getElementById('progress-fraction').textContent = `${completedCount} / 3 Completati`;
+            document.getElementById('progress-bar-fill').style.width = `${(completedCount / 3) * 100}%`;
+        }
+
+        function loadExercise(index) {
+            studentState.activeExerciseIndex = index;
+            saveState();
+
+            const ex = appConfig.exercises[index];
+            const prog = studentState.progress[index];
+
+            document.getElementById('current-ex-badge').textContent = `Esercizio ${index + 1} di 3`;
+            document.getElementById('current-ex-title').textContent = ex.title;
+            
+            const iframe = document.getElementById('learningapp-iframe');
+            if (iframe.src !== ex.iframeUrl) {
+                iframe.src = ex.iframeUrl;
+            }
+
+            // Aggiorna card obiettivi
+            document.getElementById('obj-primary-text').textContent = ex.primaryObjective;
+            document.getElementById('obj-secondary-text').textContent = ex.secondaryObjective;
+
+            const pStatus = document.getElementById('obj-primary-status');
+            const sStatus = document.getElementById('obj-secondary-status');
+            const pill = document.getElementById('current-ex-status-pill');
+            const btnComplete = document.getElementById('btn-complete-exercise');
+            const btnCompleteText = document.getElementById('btn-complete-text');
+
+            if (prog.completed) {
+                pill.className = "text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800";
+                pill.innerHTML = `<i class="fa-solid fa-check-circle mr-1"></i>Completato`;
+
+                pStatus.className = prog.primaryPassed
+                    ? "text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800"
+                    : "text-[11px] font-bold px-2 py-0.5 rounded bg-red-100 text-red-800";
+                pStatus.textContent = prog.primaryPassed ? "Superato" : "Non Superato";
+
+                sStatus.className = prog.secondaryPassed
+                    ? "text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800"
+                    : "text-[11px] font-bold px-2 py-0.5 rounded bg-red-100 text-red-800";
+                sStatus.textContent = prog.secondaryPassed ? "Superato" : "Non Superato";
+
+                btnComplete.className = "w-full sm:w-auto shrink-0 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm shadow-sm transition flex items-center justify-center gap-2";
+                btnCompleteText.textContent = "Esercizio Superato (Aggiorna Esito)";
+            } else {
+                pill.className = "text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800";
+                pill.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i>In corso`;
+
+                pStatus.className = "text-[11px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-600";
+                pStatus.textContent = "In attesa";
+
+                sStatus.className = "text-[11px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-600";
+                sStatus.textContent = "In attesa";
+
+                btnComplete.className = "w-full sm:w-auto shrink-0 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm shadow-sm transition flex items-center justify-center gap-2";
+                btnCompleteText.textContent = "Conferma Completamento Esercizio";
+            }
+
+            renderExerciseTabs();
+            updateTimersUI();
+        }
+
+        function reloadCurrentIframe() {
+            const iframe = document.getElementById('learningapp-iframe');
+            const currentSrc = iframe.src;
+            iframe.src = '';
+            setTimeout(() => { iframe.src = currentSrc; }, 100);
+            showToast("Esercizio ricaricato.", "info");
+        }
+
+        // ==================== CRONOMETRI ====================
+        function startTimer() {
+            stopTimer();
+            timerInterval = setInterval(() => {
+                // Non incrementare se modali bloccanti aperte
+                const isVerifOpen = !document.getElementById('verification-modal').classList.contains('hidden');
+                const isReportOpen = !document.getElementById('report-modal').classList.contains('hidden');
+                const isTeacherOpen = !document.getElementById('teacher-panel-modal').classList.contains('hidden');
+
+                if (!isVerifOpen && !isReportOpen && !isTeacherOpen && studentState.registered) {
+                    const idx = studentState.activeExerciseIndex;
+                    // Incrementa il tempo dell'esercizio attivo se non ancora completato (o comunque traccia attività)
+                    if (!studentState.progress[idx].completed) {
+                        studentState.progress[idx].timeSpentSec += 1;
+                        saveState();
+                    }
+                    updateTimersUI();
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function updateTimersUI() {
+            const idx = studentState.activeExerciseIndex;
+            const currentSec = studentState.progress[idx].timeSpentSec;
+            const totalSec = studentState.progress.reduce((acc, p) => acc + p.timeSpentSec, 0);
+
+            document.getElementById('active-exercise-timer').textContent = formatTime(currentSec);
+            document.getElementById('total-session-timer').textContent = formatTime(totalSec);
+        }
+
+        function formatTime(totalSeconds) {
+            const mins = Math.floor(totalSeconds / 60);
+            const secs = totalSeconds % 60;
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        // ==================== VERIFICA E COMPLETAMENTO ESERCIZIO ====================
+        let verifCountdownInterval = null;
+
+        function openVerificationModal() {
+            const idx = studentState.activeExerciseIndex;
+            const ex = appConfig.exercises[idx];
+            const prog = studentState.progress[idx];
+
+            document.getElementById('verif-ex-name').textContent = ex.title;
+            document.getElementById('verif-ex-time').textContent = formatTime(prog.timeSpentSec);
+            document.getElementById('verif-obj-primary-label').textContent = ex.primaryObjective;
+            document.getElementById('verif-obj-secondary-label').textContent = ex.secondaryObjective;
+
+            document.getElementById('check-app-solved').checked = prog.completed || prog.autoDetected;
+            document.getElementById('check-obj-primary').checked = prog.completed ? prog.primaryPassed : true;
+            document.getElementById('check-obj-secondary').checked = prog.completed ? prog.secondaryPassed : true;
+            document.getElementById('verif-student-note').value = prog.note || "";
+
+            document.getElementById('verification-modal').classList.remove('hidden');
+            checkMinTimeRequirement();
+        }
+
+        function checkMinTimeRequirement() {
+            const idx = studentState.activeExerciseIndex;
+            const prog = studentState.progress[idx];
+            const minReq = parseInt(appConfig.minTimeSeconds, 10) || 0;
+            const warningBox = document.getElementById('min-time-warning');
+            const confirmBtn = document.getElementById('btn-confirm-verif');
+
+            if (prog.timeSpentSec < minReq && !prog.completed) {
+                const remaining = minReq - prog.timeSpentSec;
+                document.getElementById('min-time-required-sec').textContent = minReq;
+                document.getElementById('min-time-remaining-sec').textContent = remaining;
+                warningBox.classList.remove('hidden');
+                confirmBtn.disabled = true;
+
+                if (verifCountdownInterval) clearInterval(verifCountdownInterval);
+                verifCountdownInterval = setInterval(() => {
+                    studentState.progress[idx].timeSpentSec += 1;
+                    saveState();
+                    updateTimersUI();
+                    document.getElementById('verif-ex-time').textContent = formatTime(studentState.progress[idx].timeSpentSec);
+                    const rem = minReq - studentState.progress[idx].timeSpentSec;
+                    if (rem <= 0) {
+                        clearInterval(verifCountdownInterval);
+                        warningBox.classList.add('hidden');
+                        confirmBtn.disabled = false;
+                    } else {
+                        document.getElementById('min-time-remaining-sec').textContent = rem;
+                    }
+                }, 1000);
+            } else {
+                warningBox.classList.add('hidden');
+                confirmBtn.disabled = false;
+            }
+        }
+
+        function closeVerificationModal() {
+            if (verifCountdownInterval) clearInterval(verifCountdownInterval);
+            document.getElementById('verification-modal').classList.add('hidden');
+        }
+
+        function confirmExerciseCompletion() {
+            const isAppSolved = document.getElementById('check-app-solved').checked;
+            if (!isAppSolved) {
+                showToast("Devi confermare di aver completato l'attività in LearningApps.", "warning");
+                return;
+            }
+
+            const idx = studentState.activeExerciseIndex;
+            studentState.progress[idx].completed = true;
+            studentState.progress[idx].primaryPassed = document.getElementById('check-obj-primary').checked;
+            studentState.progress[idx].secondaryPassed = document.getElementById('check-obj-secondary').checked;
+            studentState.progress[idx].note = document.getElementById('verif-student-note').value.trim();
+
+            saveState();
+            closeVerificationModal();
+            renderExerciseTabs();
+            loadExercise(idx);
+
+            // Se ci sono esercizi successivi, passa automaticamente al successivo
+            if (idx < appConfig.exercises.length - 1) {
+                showToast(`Ottimo! ${appConfig.exercises[idx].title} completato. Passaggio all'esercizio successivo...`, "success");
+                setTimeout(() => {
+                    loadExercise(idx + 1);
+                }, 900);
+            } else {
+                showToast("Complimenti! Hai completato tutti e 3 gli esercizi. Ora puoi generare il Report per il Docente!", "success");
+            }
+        }
+
+        // ==================== TUTOR AI (GEMINI) ====================
+        function toggleAITutor() {
+            const drawer = document.getElementById('ai-tutor-drawer');
+            drawer.classList.toggle('translate-x-full');
+        }
+
+        function appendAIChatMessage(sender, text) {
+            const container = document.getElementById('ai-chat-messages');
+            const msgDiv = document.createElement('div');
+            if (sender === 'user') {
+                msgDiv.className = "bg-brand-600 text-white rounded-2xl rounded-tr-none p-3.5 shadow-sm text-xs leading-relaxed ml-8";
+                msgDiv.textContent = text;
+            } else {
+                msgDiv.className = "bg-white border border-slate-200 rounded-2xl rounded-tl-none p-3.5 shadow-sm text-slate-700 text-xs leading-relaxed mr-6 whitespace-pre-line";
+                msgDiv.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            }
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function appendAITypingIndicator() {
+            const container = document.getElementById('ai-chat-messages');
+            const loader = document.createElement('div');
+            loader.id = 'ai-typing-loader';
+            loader.className = "bg-white border border-slate-200 rounded-2xl rounded-tl-none p-3.5 shadow-sm w-16 flex items-center justify-center gap-1";
+            loader.innerHTML = `<span class="w-1.5 h-1.5 bg-emerald-500 rounded-full typing-dot"></span><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full typing-dot"></span><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full typing-dot"></span>`;
+            container.appendChild(loader);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function removeAITypingIndicator() {
+            const loader = document.getElementById('ai-typing-loader');
+            if (loader) loader.remove();
+        }
+
+        async function askAIForCurrentExercise() {
+            const drawer = document.getElementById('ai-tutor-drawer');
+            if (drawer.classList.contains('translate-x-full')) {
+                drawer.classList.remove('translate-x-full');
+            }
+            const ex = appConfig.exercises[studentState.activeExerciseIndex];
+            const prompt = `Sto svolgendo "${ex.title}". L'obiettivo primario è: "${ex.primaryObjective}". Dammi un suggerimento metodologico chiaro e incoraggiante per affrontare l'esercizio senza svelarmi le soluzioni.`;
+            await processAIQuery(prompt);
+        }
+
+        async function sendQuickPrompt(text) {
+            await processAIQuery(text);
+        }
+
+        async function handleAIChatSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('ai-chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+            await processAIQuery(text);
+        }
+
+        async function processAIQuery(userText) {
+            appendAIChatMessage('user', userText);
+            appendAITypingIndicator();
+            const sendBtn = document.getElementById('ai-chat-send-btn');
+            sendBtn.disabled = true;
+
+            const currentEx = appConfig.exercises[studentState.activeExerciseIndex];
+            const systemInstruction = `Sei un Tutor AI didattico gentile, paziente e competente per studenti delle scuole italiane. 
+            L'alunno si chiama ${studentState.nome || 'Studente'} (Classe ${studentState.classe || 'N/D'}) e sta lavorando su "${currentEx.title}".
+            Obiettivo primario: ${currentEx.primaryObjective}. Obiettivo secondario: ${currentEx.secondaryObjective}.
+            Regola fondamentale: guida lo studente con il metodo maieutico, offri strategie di ragionamento e chiarimenti concettuali, senza mai fornire risposte dirette o soluzioni già pronte. Rispondi in italiano in modo conciso (max 120 parole).`;
+
+            try {
+                const reply = await callGeminiAPI(userText, systemInstruction);
+                removeAITypingIndicator();
+                appendAIChatMessage('ai', reply);
+            } catch (err) {
+                removeAITypingIndicator();
+                appendAIChatMessage('ai', "Al momento non riesco a connettermi al servizio AI. Rileggi con attenzione la consegna dell'esercizio e procedi per esclusione verificando ogni abbinamento!");
+            } finally {
+                sendBtn.disabled = false;
+            }
+        }
+
+        // ==================== AREA DOCENTE PROTETTA DA PASSWORD ====================
+        function openTeacherLoginModal() {
+            document.getElementById('teacher-password-input').value = '';
+            document.getElementById('teacher-login-error').classList.add('hidden');
+            document.getElementById('teacher-login-modal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('teacher-password-input').focus(), 100);
+        }
+
+        function closeTeacherLoginModal() {
+            document.getElementById('teacher-login-modal').classList.add('hidden');
+        }
+
+        function handleTeacherLogin(e) {
+            e.preventDefault();
+            const pwd = document.getElementById('teacher-password-input').value;
+            if (pwd === appConfig.teacherPassword) {
+                closeTeacherLoginModal();
+                openTeacherPanel();
+            } else {
+                document.getElementById('teacher-login-error').classList.remove('hidden');
+            }
+        }
+
+        function openTeacherPanel() {
+            document.getElementById('cfg-sequential').checked = appConfig.sequentialOrder;
+            document.getElementById('cfg-min-time').value = appConfig.minTimeSeconds;
+            document.getElementById('cfg-teacher-email').value = appConfig.teacherEmail;
+            document.getElementById('cfg-teacher-password').value = appConfig.teacherPassword;
+
+            const listContainer = document.getElementById('teacher-exercises-config-list');
+            listContainer.innerHTML = '';
+
+            appConfig.exercises.forEach((ex, idx) => {
+                const box = document.createElement('div');
+                box.className = "bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3";
+                box.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-brand-700 bg-brand-100 px-2.5 py-1 rounded-lg">Esercizio #${idx + 1}</span>
+                        <span class="text-[11px] text-slate-500">ID LearningApps incorporato</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Titolo Esercizio</label>
+                            <input type="text" id="cfg-ex-title-${idx}" value="${ex.title.replace(/"/g, '&quot;')}" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">URL Embed LearningApps (src iframe)</label>
+                            <input type="url" id="cfg-ex-url-${idx}" value="${ex.iframeUrl}" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono bg-white">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-indigo-700 mb-1">Obiettivo Primario</label>
+                            <textarea id="cfg-ex-prim-${idx}" rows="2" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs bg-white">${ex.primaryObjective}</textarea>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-emerald-700 mb-1">Obiettivo Secondario</label>
+                            <textarea id="cfg-ex-sec-${idx}" rows="2" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs bg-white">${ex.secondaryObjective}</textarea>
+                        </div>
+                    </div>
+                `;
+                listContainer.appendChild(box);
+            });
+
+            document.getElementById('teacher-panel-modal').classList.remove('hidden');
+        }
+
+        function closeTeacherPanel() {
+            document.getElementById('teacher-panel-modal').classList.add('hidden');
+        }
+
+        function saveTeacherSettings() {
+            appConfig.sequentialOrder = document.getElementById('cfg-sequential').checked;
+            appConfig.minTimeSeconds = Math.max(0, parseInt(document.getElementById('cfg-min-time').value, 10) || 0);
+            appConfig.teacherEmail = document.getElementById('cfg-teacher-email').value.trim() || DEFAULT_CONFIG.teacherEmail;
+            const newPwd = document.getElementById('cfg-teacher-password').value.trim();
+            if (newPwd) appConfig.teacherPassword = newPwd;
+
+            appConfig.exercises.forEach((ex, idx) => {
+                ex.title = document.getElementById(`cfg-ex-title-${idx}`).value.trim() || ex.title;
+                ex.iframeUrl = document.getElementById(`cfg-ex-url-${idx}`).value.trim() || ex.iframeUrl;
+                ex.primaryObjective = document.getElementById(`cfg-ex-prim-${idx}`).value.trim();
+                ex.secondaryObjective = document.getElementById(`cfg-ex-sec-${idx}`).value.trim();
+            });
+
+            saveState();
+            closeTeacherPanel();
+            updateRegistrationModeHint();
+
+            if (studentState.registered) {
+                showWorkspaceView();
+            } else {
+                document.getElementById('input-email-docente').value = appConfig.teacherEmail;
+            }
+            showToast("Configurazione docente salvata con successo!", "success");
+        }
+
+        function resetStudentSession() {
+            studentState = JSON.parse(JSON.stringify(DEFAULT_STUDENT_STATE));
+            studentState.emailDocente = appConfig.teacherEmail;
+            saveState();
+            closeTeacherPanel();
+            showRegistrationView();
+            showToast("Sessione alunno azzerata. Pronto per un nuovo studente.", "info");
+        }
+
+        // ==================== REPORT FINALE, VALUTAZIONE AI E INVIO EMAIL ====================
+        async function openReportModal() {
+            const now = new Date();
+            document.getElementById('rep-date').textContent = now.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            document.getElementById('rep-mode').textContent = appConfig.sequentialOrder ? "Sequenziale Obbligatoria (1→2→3)" : "Navigazione Libera";
+
+            document.getElementById('rep-student-fullname').textContent = `${studentState.nome} ${studentState.cognome}`;
+            document.getElementById('rep-student-class').textContent = studentState.classe;
+            document.getElementById('rep-student-matricola').textContent = studentState.matricola;
+            document.getElementById('rep-student-email').textContent = studentState.emailAlunno;
+            document.getElementById('rep-teacher-email').textContent = studentState.emailDocente || appConfig.teacherEmail;
+
+            const totalSec = studentState.progress.reduce((acc, p) => acc + p.timeSpentSec, 0);
+            document.getElementById('rep-total-time').textContent = formatTime(totalSec);
+
+            const tbody = document.getElementById('rep-exercises-tbody');
+            tbody.innerHTML = '';
+
+            appConfig.exercises.forEach((ex, idx) => {
+                const prog = studentState.progress[idx];
+                const tr = document.createElement('tr');
+                tr.className = "align-top";
+
+                const primBadge = !prog.completed
+                    ? `<span class="inline-block mt-1 px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-bold text-[10px]">NON SVOLTO</span>`
+                    : (prog.primaryPassed
+                        ? `<span class="inline-block mt-1 px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">✓ SUPERATO</span>`
+                        : `<span class="inline-block mt-1 px-2 py-0.5 rounded bg-red-100 text-red-800 font-bold text-[10px]">✗ NON SUPERATO</span>`);
+
+                const secBadge = !prog.completed
+                    ? `<span class="inline-block mt-1 px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-bold text-[10px]">NON SVOLTO</span>`
+                    : (prog.secondaryPassed
+                        ? `<span class="inline-block mt-1 px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">✓ SUPERATO</span>`
+                        : `<span class="inline-block mt-1 px-2 py-0.5 rounded bg-red-100 text-red-800 font-bold text-[10px]">✗ NON SUPERATO</span>`);
+
+                const statusBadge = prog.completed
+                    ? `<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px] whitespace-nowrap">Completato</span>`
+                    : `<span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-bold text-[11px] whitespace-nowrap">Incompleto</span>`;
+
+                tr.innerHTML = `
+                    <td class="p-3 font-semibold text-slate-800">
+                        ${ex.title}
+                        ${prog.note ? `<p class="text-[11px] text-slate-500 font-normal italic mt-1">Nota alunno: "${prog.note}"</p>` : ''}
+                    </td>
+                    <td class="p-3 font-mono font-bold text-slate-700 whitespace-nowrap">${formatTime(prog.timeSpentSec)}</td>
+                    <td class="p-3 text-slate-600">
+                        <p class="leading-snug">${ex.primaryObjective}</p>
+                        ${primBadge}
+                    </td>
+                    <td class="p-3 text-slate-600">
+                        <p class="leading-snug">${ex.secondaryObjective}</p>
+                        ${secBadge}
+                    </td>
+                    <td class="p-3">${statusBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('report-modal').classList.remove('hidden');
+
+            if (studentState.aiReportSummary) {
+                document.getElementById('rep-ai-evaluation').textContent = studentState.aiReportSummary;
+            } else {
+                await generateAIFeedbackForReport();
+            }
+        }
+
+        function closeReportModal() {
+            document.getElementById('report-modal').classList.add('hidden');
+        }
+
+        async function generateAIFeedbackForReport() {
+            const evalBox = document.getElementById('rep-ai-evaluation');
+            const regenBtn = document.getElementById('btn-regenerate-ai-report');
+            evalBox.innerHTML = `<span class="text-brand-600 font-medium"><i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Elaborazione analisi formativa con Gemini AI in corso...</span>`;
+            regenBtn.disabled = true;
+
+            const summaryData = appConfig.exercises.map((ex, idx) => {
+                const p = studentState.progress[idx];
+                return `- ${ex.title}: Stato=${p.completed ? 'Completato' : 'Non completato'}, Tempo=${formatTime(p.timeSpentSec)}, Obiettivo Primario ("${ex.primaryObjective}")=${p.primaryPassed ? 'Superato' : 'Non Superato'}, Obiettivo Secondario ("${ex.secondaryObjective}")=${p.secondaryPassed ? 'Superato' : 'Non Superato'}.`;
+            }).join('\n');
+
+            const prompt = `Redigi una breve valutazione formativa e pedagogica (massimo 110 parole) rivolta al docente per l'alunno ${studentState.nome} ${studentState.cognome} (Classe ${studentState.classe}).
+Dati prestazione:
+${summaryData}
+Evidenzia punti di forza, gestione dei tempi e raggiungimento degli obiettivi primari e secondari in tono professionale e costruttivo.`;
+
+            try {
+                const feedback = await callGeminiAPI(prompt, "Sei un assistente didattico esperto in valutazione formativa scolastica italiana.");
+                studentState.aiReportSummary = feedback;
+                saveState();
+                evalBox.textContent = feedback;
+            } catch (err) {
+                const completedCount = studentState.progress.filter(p => p.completed).length;
+                const fallbackText = `L'alunno ${studentState.nome} ${studentState.cognome} ha completato ${completedCount} su 3 attività proposte con un impegno complessivo di ${document.getElementById('rep-total-time').textContent}. Il percorso evidenzia il livello di padronanza raggiunto rispetto agli obiettivi primari e secondari configurati dal docente.`;
+                studentState.aiReportSummary = fallbackText;
+                saveState();
+                evalBox.textContent = fallbackText;
+            } finally {
+                regenBtn.disabled = false;
+            }
+        }
+
+        function buildPlainTextReport() {
+            const totalSec = studentState.progress.reduce((acc, p) => acc + p.timeSpentSec, 0);
+            let lines = [
+                "====================================================",
+                "REPORT PERCORSO DIDATTICO INTERATTIVO - LEARNINGAPPS",
+                "====================================================",
+                `Data: ${document.getElementById('rep-date').textContent}`,
+                `Alunno: ${studentState.nome} ${studentState.cognome}`,
+                `Classe/Sezione: ${studentState.classe}`,
+                `Data Nascita / Matricola: ${studentState.matricola}`,
+                `Email Alunno: ${studentState.emailAlunno}`,
+                `Modalità Percorso: ${appConfig.sequentialOrder ? 'Sequenziale Obbligatoria (1->2->3)' : 'Libera'}`,
+                `Tempo Totale Sessione: ${formatTime(totalSec)}`,
+                "",
+                "--- DETTAGLIO ESERCIZI E OBIETTIVI ---"
+            ];
+
+            appConfig.exercises.forEach((ex, idx) => {
+                const p = studentState.progress[idx];
+                lines.push(`\n${idx + 1}. ${ex.title}`);
+                lines.push(`   - Stato: ${p.completed ? 'COMPLETATO' : 'NON COMPLETATO'} | Durata: ${formatTime(p.timeSpentSec)}`);
+                lines.push(`   - Obiettivo Primario: ${ex.primaryObjective}`);
+                lines.push(`     Esito Primario: ${p.completed ? (p.primaryPassed ? 'SUPERATO' : 'NON SUPERATO') : 'NON SVOLTO'}`);
+                lines.push(`   - Obiettivo Secondario: ${ex.secondaryObjective}`);
+                lines.push(`     Esito Secondario: ${p.completed ? (p.secondaryPassed ? 'SUPERATO' : 'NON SUPERATO') : 'NON SVOLTO'}`);
+                if (p.note) lines.push(`   - Nota Alunno: ${p.note}`);
+            });
+
+            lines.push("\n--- VALUTAZIONE FORMATIVA AI ---");
+            lines.push(studentState.aiReportSummary || "Non disponibile.");
+            lines.push("====================================================");
+            return lines.join('\n');
+        }
+
+        function copyReportToClipboard() {
+            const text = buildPlainTextReport();
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast("Report copiato negli appunti! Puoi incollarlo ovunque.", "success");
+        }
+
+        function sendReportViaEmail() {
+            const recipient = studentState.emailDocente || appConfig.teacherEmail;
+            const subject = encodeURIComponent(`Report Didattico LearningApps - ${studentState.cognome} ${studentState.nome} (${studentState.classe})`);
+            const body = encodeURIComponent(buildPlainTextReport());
+
+            // Copia anche negli appunti come sicurezza nel caso il body mailto sia lungo
+            copyReportToClipboard();
+
+            window.location.href = `mailto:${recipient}?subject=${subject}&body=${body}`;
+            showToast(`Apertura client email verso ${recipient}...`, "info");
+        }
+
+        // ==================== NOTIFICHE TOAST ====================
+        function showToast(message, type = "info") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const colors = {
+                success: "bg-emerald-600 text-white",
+                warning: "bg-amber-600 text-white",
+                error: "bg-red-600 text-white",
+                info: "bg-slate-800 text-white"
+            };
+            const icons = {
+                success: "fa-circle-check",
+                warning: "fa-triangle-exclamation",
+                error: "fa-circle-xmark",
+                info: "fa-circle-info"
+            };
+
+            toast.className = `${colors[type] || colors.info} px-4 py-3 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2.5 max-w-sm pointer-events-auto transition-all duration-300`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info} text-sm"></i><span>${message}</span>`;
+
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+    </script>
+</body>
+</html>
