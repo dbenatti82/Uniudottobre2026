@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generatore di esercizi – Completa il testo</title>
+<style>
+:root{--ink:#172033;--muted:#64748b;--line:#dbe3ee;--bg:#f4f7fb;--blue:#2563eb;--green:#15803d;--red:#b91c1c}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+header{background:#14213d;color:white;padding:22px max(20px,calc((100% - 1100px)/2))}
+header h1{font-size:clamp(22px,3vw,30px);margin:0 0 4px}header p{margin:0;color:#d7e2f3}
+main{max-width:1100px;margin:24px auto;padding:0 18px 50px}.panel{background:white;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:18px;box-shadow:0 3px 14px #1e293b08}
+h2{font-size:19px;margin:0 0 14px}.hint{color:var(--muted);font-size:13px;margin-top:5px}
+label{display:block;font-weight:650;font-size:14px;margin:0 0 6px}
+input,textarea,select{width:100%;border:1px solid #cbd5e1;border-radius:9px;padding:11px 12px;font:inherit;background:white;color:var(--ink)}
+textarea{min-height:130px;resize:vertical}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.field{min-width:0}.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
+button{border:0;border-radius:9px;padding:11px 16px;font-weight:700;font-size:14px;cursor:pointer;background:var(--blue);color:white}
+button.secondary{background:#e8eef8;color:#1e3a5f}button.green{background:var(--green)}button.dark{background:#334155}button.red{background:#b91c1c}button:disabled{opacity:.5;cursor:not-allowed}
+.hidden{display:none!important}.studentline{display:flex;gap:10px;flex-wrap:wrap}.studentline .field{flex:1;min-width:150px}
+#exerciseText{font-size:19px;line-height:2.2}.blank{display:inline-block;min-width:115px;max-width:190px;vertical-align:middle;margin:0 3px}
+.blank input{padding:5px 8px;border:0;border-bottom:2px solid #64748b;border-radius:0;text-align:center;background:#f8fafc;font-size:17px}
+.blank input:focus{outline:2px solid #93c5fd;border-radius:5px}.wordbank{background:#eff6ff;border-radius:10px;padding:12px;margin:14px 0}.wordbank strong{display:block;margin-bottom:5px}
+.statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{background:#f1f5f9;border-radius:10px;padding:13px}.stat b{font-size:24px;display:block}.stat span{font-size:12px;color:var(--muted)}
+.correct{color:var(--green);font-weight:700}.wrong{color:var(--red);font-weight:700}.resultrow{padding:9px 0;border-bottom:1px solid var(--line)}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:10px}
+@media(max-width:700px){.grid,.grid3{grid-template-columns:1fr}.statgrid{grid-template-columns:repeat(2,1fr)}.panel{padding:15px}#exerciseText{font-size:17px}}
+</style>
+</head>
+<body>
+<header><h1>Generatore di esercizi</h1><p>Completa il testo · crea, assegna, correggi ed esporta gli esercizi</p></header>
+<main>
+<section class="panel" id="editor">
+<h2>1. Prepara l'esercizio</h2>
+<div class="grid">
+ <div class="field"><label for="title">Titolo</label><input id="title" value="Completa il testo"></div>
+ <div class="field"><label for="subject">Materia / argomento</label><input id="subject" placeholder="Es. Scienze – La cellula"></div>
+</div>
+<div class="field" style="margin-top:14px"><label for="instructions">Istruzioni per lo studente</label><input id="instructions" value="Completa il testo inserendo le parole mancanti."></div>
+<div class="field" style="margin-top:14px"><label for="sourceText">Testo dell'esercizio</label>
+<textarea id="sourceText" placeholder="Scrivi il testo e inserisci le parole da nascondere tra doppie parentesi graffe. Esempio: La {{cellula}} è l'unità fondamentale della vita."></textarea>
+<div class="hint">Per creare uno spazio da completare, racchiudi la soluzione tra doppie parentesi graffe: {{mitocondrio}}. La parola verrà nascosta allo studente e aggiunta automaticamente al gruppo delle parole.</div>
+</div>
+<div class="grid3" style="margin-top:14px">
+ <div class="field"><label for="duration">Tempo (minuti)</label><input id="duration" type="number" min="0" max="180" value="3"></div>
+ <div class="field"><label for="mode">Modalità</label><select id="mode"><option value="all">Testo completo in un'unica schermata</option><option value="sequential">Compilazione libera, in ordine</option></select></div>
+ <div class="field"><label for="showWords">Mostra gruppo parole</label><select id="showWords"><option value="yes">Sì</option><option value="no">No</option></select></div>
+</div>
+<div class="actions">
+ <button class="green" id="previewBtn">Anteprima esercizio</button>
+ <button class="secondary" id="exportBtn">Scarica in JSON</button>
+ <button class="secondary" id="importBtn">Importa da JSON</button>
+ <input id="jsonFile" type="file" accept=".json,application/json" class="hidden">
+ <button class="dark" id="resetBtn">Nuovo esercizio</button>
+</div>
+<div class="hint">Il file JSON salva titolo, argomento, istruzioni, testo con soluzioni, timer e tutte le impostazioni. Non contiene i dati personali degli studenti né i risultati delle prove.</div>
+</section>
+
+<section class="panel hidden" id="studentPanel">
+<h2>2. Dati dello studente</h2>
+<div class="studentline">
+ <div class="field"><label for="firstName">Nome</label><input id="firstName" autocomplete="given-name"></div>
+ <div class="field"><label for="lastName">Cognome</label><input id="lastName" autocomplete="family-name"></div>
+ <div class="field"><label for="className">Classe</label><input id="className" placeholder="Es. 2ª A"></div>
+ <div class="field"><label for="date">Data</label><input id="date" type="date"></div>
+</div>
+<div class="actions"><button id="startBtn">Inizia esercizio</button></div>
+</section>
+
+<section class="panel hidden" id="playPanel">
+<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+ <div><h2 id="playTitle" style="margin-bottom:3px"></h2><div class="hint" id="playSubject"></div></div>
+ <div style="font-size:20px;font-weight:800" id="timer">03:00</div>
+</div>
+<p id="playInstructions"></p>
+<div class="wordbank" id="wordBank"><strong>Parole da utilizzare</strong><span id="words"></span></div>
+<div id="exerciseText"></div>
+<div class="actions"><button class="green" id="finishBtn">Consegna e correggi</button><button class="secondary" id="backBtn">Torna alle impostazioni</button></div>
+</section>
+
+<section class="panel hidden" id="reportPanel">
+<h2>3. Report finale</h2>
+<div id="studentSummary" class="hint" style="margin-bottom:14px"></div>
+<div class="statgrid">
+ <div class="stat"><b id="score">0%</b><span>Precisione</span></div>
+ <div class="stat"><b id="correctCount">0</b><span>Risposte corrette</span></div>
+ <div class="stat"><b id="wrongCount">0</b><span>Errori / omissioni</span></div>
+ <div class="stat"><b id="elapsed">0:00</b><span>Tempo impiegato</span></div>
+</div>
+<div id="details" style="margin-top:15px"></div>
+<div class="actions"><button id="againBtn">Nuovo tentativo</button><button class="secondary" id="editBtn">Modifica esercizio</button><button class="secondary" id="printBtn">Stampa report</button></div>
+</section>
+<footer>Applicazione autonoma · i dati restano nel browser finché non esporti i file</footer>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let timerId=null, startedAt=0, remaining=0, currentStudent={}, blanks=[];
+const defaults={title:"Completa il testo",subject:"",instructions:"Completa il testo inserendo le parole mancanti.",text:"",duration:3,mode:"all",showWords:"yes"};
+function config(){return {version:1,title:$("title").value,subject:$("subject").value,instructions:$("instructions").value,text:$("sourceText").value,duration:Math.max(0,Math.min(180,Number($("duration").value)||0)),mode:$("mode").value,showWords:$("showWords").value};}
+function setConfig(c){$("title").value=c.title??defaults.title;$("subject").value=c.subject??"";$("instructions").value=c.instructions??defaults.instructions;$("sourceText").value=c.text??"";$("duration").value=c.duration??3;$("mode").value=c.mode??"all";$("showWords").value=c.showWords??"yes";}
+function parseText(text){const re=/\{\{([\s\S]+?)\}\}/g;let parts=[],last=0,m;while((m=re.exec(text))!==null){if(m.index>last)parts.push({type:"text",value:text.slice(last,m.index)});parts.push({type:"blank",value:m[1].trim()});last=re.lastIndex;}if(last<text.length)parts.push({type:"text",value:text.slice(last)});return parts;}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function show(id){["studentPanel","playPanel","reportPanel"].forEach(x=>$(x).classList.add("hidden"));if(id)$(id).classList.remove("hidden");}
+function preview(){const c=config();if(!c.text.trim()){alert("Inserisci prima il testo dell'esercizio.");return;}renderStudent(c);show("studentPanel");$("date").value=new Date().toISOString().slice(0,10);$("studentPanel").scrollIntoView({behavior:"smooth"});}
+function renderStudent(c){$("playTitle").textContent=c.title;$("playSubject").textContent=c.subject;$("playInstructions").textContent=c.instructions;let parts=parseText(c.text),words=parts.filter(p=>p.type==="blank").map(p=>p.value);if(!words.length){alert("Inserisci almeno una parola tra doppie parentesi graffe, ad esempio {{cellula}}.");return false;}blanks=words;$("words").textContent=[...words].sort(()=>Math.random()-.5).join(" · ");$("wordBank").classList.toggle("hidden",c.showWords==="no");$("exerciseText").innerHTML=parts.map(p=>p.type==="text"?escapeHtml(p.value).replace(/\n/g,"<br>"):`<span class="blank"><input type="text" aria-label="Parola mancante" autocomplete="off" spellcheck="false"></span>`).join("");return true;}
+function start(){if(!$("firstName").value.trim()||!$("lastName").value.trim()||!$("className").value.trim()){alert("Inserisci nome, cognome e classe.");return;}currentStudent={first:$("firstName").value.trim(),last:$("lastName").value.trim(),className:$("className").value.trim(),date:$("date").value};const c=config();if(!renderStudent(c))return;show("playPanel");startedAt=Date.now();remaining=c.duration*60;updateTimer();if(timerId)clearInterval(timerId);if(remaining>0)timerId=setInterval(()=>{remaining--;updateTimer();if(remaining<=0)finish();},1000);$("playPanel").scrollIntoView({behavior:"smooth"});$("exerciseText").querySelector("input")?.focus();}
+function updateTimer(){const m=Math.floor(remaining/60),s=remaining%60;$("timer").textContent=String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");}
+function finish(){if(timerId){clearInterval(timerId);timerId=null;}const elapsed=Math.max(0,Math.round((Date.now()-startedAt)/1000));const inputs=[...$("exerciseText").querySelectorAll("input")];let correct=0,details=[];inputs.forEach((input,i)=>{const expected=blanks[i],answer=input.value.trim();const ok=answer.localeCompare(expected,undefined,{sensitivity:"accent"})===0;if(ok)correct++;input.disabled=true;details.push(`<div class="resultrow"><b>${i+1}.</b> La tua risposta: <span class="${ok?"correct":"wrong"}">${escapeHtml(answer||"—")}</span> · Soluzione: <b>${escapeHtml(expected)}</b> ${ok?"✓":"✗"}</div>`);});const total=inputs.length,wrong=total-correct,percent=total?Math.round(correct/total*100):0;$("score").textContent=percent+"%";$("correctCount").textContent=correct;$("wrongCount").textContent=wrong;$("elapsed").textContent=Math.floor(elapsed/60)+":"+String(elapsed%60).padStart(2,"0");$("studentSummary").textContent=`${currentStudent.first} ${currentStudent.last} · ${currentStudent.className} · ${currentStudent.date}`;$("details").innerHTML=details.join("");show("reportPanel");$("reportPanel").scrollIntoView({behavior:"smooth"});}
+function exportJson(){const c=config();if(!c.text.trim()){alert("Inserisci il testo prima di esportare.");return;}const blob=new Blob([JSON.stringify(c,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=(c.title||"esercizio").toLowerCase().replace(/[^a-z0-9àèéìòù]+/gi,"-")+".json";a.click();URL.revokeObjectURL(url);}
+function importJson(file){if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const data=JSON.parse(reader.result);if(!data||typeof data.text!=="string")throw new Error("Formato non riconosciuto");setConfig(data);alert("Impostazioni importate correttamente.");}catch(e){alert("Impossibile importare il file JSON: "+e.message);}$("jsonFile").value="";};reader.readAsText(file);}
+$("previewBtn").addEventListener("click",preview);$("startBtn").addEventListener("click",start);$("finishBtn").addEventListener("click",finish);$("exportBtn").addEventListener("click",exportJson);$("importBtn").addEventListener("click",()=>$("jsonFile").click());$("jsonFile").addEventListener("change",e=>importJson(e.target.files[0]));$("backBtn").addEventListener("click",()=>{if(timerId)clearInterval(timerId);show("studentPanel");$("editor").scrollIntoView({behavior:"smooth"});});$("againBtn").addEventListener("click",()=>{show("studentPanel");$("studentPanel").scrollIntoView({behavior:"smooth"});});$("editBtn").addEventListener("click",()=>{$("editor").scrollIntoView({behavior:"smooth"});show(null);});$("printBtn").addEventListener("click",()=>window.print());$("resetBtn").addEventListener("click",()=>{if(!confirm("Vuoi svuotare i campi e creare un nuovo esercizio?"))return;setConfig(defaults);show(null);$("editor").scrollIntoView({behavior:"smooth"});}); 
+</script>
+</body>
+</html>
